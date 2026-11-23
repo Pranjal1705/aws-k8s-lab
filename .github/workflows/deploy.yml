@@ -1,0 +1,26 @@
+name: Deploy Kubernetes Manifests
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "k8s/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TARGET_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.TARGET_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Apply Kubernetes manifests on target node
+        run: |
+          ssh -i ~/.ssh/id_rsa "${{ secrets.TARGET_USER }}@${{ secrets.TARGET_HOST }}" \
+            "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml && kubectl apply -f - && kubectl get pods" < k8s/deployment.yaml
